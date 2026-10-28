@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Desk Dashboard</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --card: #141a28;
+    --border: #1e2638;
+    --text: #e8edf5;
+    --muted: #8b95a8;
+    --green: #00d4aa;
+    --red: #ff4d6d;
+    --yellow: #ffb020;
+    --blue: #4d9fff;
+    --skip: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 12px;
+    padding-bottom: 80px;
+    line-height: 1.4;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-weight: 700; font-size: 18px; letter-spacing: -0.5px; }
+  .logo span { color: var(--green); }
+  .mode {
+    background: #1a3a2e;
+    color: var(--green);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .metric {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .metric .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .metric .value { font-size: 22px; font-weight: 700; }
+  .metric .value.green { color: var(--green); }
+  .metric .value.red { color: var(--red); }
+  .metric .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .section { margin-bottom: 20px; }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .section-title .count {
+    background: var(--border);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .agent {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .agent.scan { background: #1e3a5f; color: var(--blue); }
+  .agent.verify { background: #3a2e1e; color: var(--yellow); }
+  .agent.execute { background: #1e3a2e; color: var(--green); }
+  .agent.exit { background: #3a1e2e; color: var(--red); }
+  .result {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .result.skip { background: #2a2e38; color: var(--skip); }
+  .result.pass, .result.candidate { background: #1a3a2e; color: var(--green); }
+  .result.fill { background: #1a2e3a; color: var(--blue); }
+  .result.sell { background: #3a2a1e; color: var(--yellow); }
+  .card-body { padding: 12px 14px; font-size: 13px; }
+  .token { font-weight: 600; font-family: ui-monospace, monospace; }
+  .reason { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .row .k { color: var(--muted); }
+  .pnl.pos { color: var(--green); }
+  .pnl.neg { color: var(--red); }
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .tab {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .tab.active { background: var(--green); color: #000; border-color: var(--green); font-weight: 600; }
+  .bar-container { margin-top: 8px; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+  .bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .exit-rules { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    justify-content: space-around;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  footer .active { color: var(--green); font-weight: 600; }
+  .empty { text-align: center; padding: 30px; color: var(--muted); font-size: 13px; }
+  .updated { font-size: 11px; color: var(--muted); text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DESK<span>.</span></div>
+  <div class="mode">PAPER MODE</div>
+</header>
+<div id="freshness" style="margin:8px 16px;padding:8px 12px;border-radius:8px;font-size:13px;background:#1f2937;color:#d1d5db">Data age: loading…</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="label">Balance</div>
+    <div class="value green" id="balance">—</div>
+    <div class="sub" id="balanceSub">loading…</div>
+  </div>
+  <div class="metric">
+    <div class="label">Open Positions</div>
+    <div class="value" id="openCount">—</div>
+    <div class="sub" id="openSub">—</div>
+  </div>
+  <div class="metric">
+    <div class="label">Tasks</div>
+    <div class="value" id="tasksToday">—</div>
+    <div class="sub" id="tasksSub">—</div>
+  </div>
+  <div class="metric">
+    <div class="label">Session PnL</div>
+    <div class="value" id="sessionPnl">—</div>
+    <div class="sub" id="pnlSub">—</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Skip Reasons <span class="count" id="skipCount">—</span></div>
+  <div class="card">
+    <div class="card-body" id="skipReasons">loading…</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Open Positions <span class="count" id="posCount">0</span></div>
+  <div id="positions"></div>
+  <div class="card" style="margin:12px 0"><div class="card-body" id="modeInfo">loading…</div></div>
+  <div class="section-title" style="margin:16px 0 8px;font-weight:600">Latest Trade Tickets (PAPER — do not sign)</div>
+  <div id="tickets"></div>
+  <div class="section-title" style="margin:16px 0 8px;font-weight:600">Pending Proposals (paper approval)</div>
+  <div class="card"><div class="card-body" id="approvalStats">loading…</div></div>
+  <div id="proposals"></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Recent Tasks</div>
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-filter="all">All</div>
+    <div class="tab" data-filter="skip">Skips</div>
+    <div class="tab" data-filter="candidate">Candidates</div>
+    <div class="tab" data-filter="fill">Fills</div>
+  </div>
+  <div id="tasks"></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Closed Trades</div>
+  <div id="trades"></div>
+</div>
+
+<div class="updated" id="updated">—</div>
+
+<footer>
+  <div class="active">Desk</div>
+  <div>Tasks</div>
+  <div>Trades</div>
+  <div>Settings</div>
+</footer>
+
+<script>
+let currentData = null;
+let currentFilter = 'all';
+
+async function loadData() {
+  try {
+    const res = await fetch('data.json?t=' + Date.now());
+    if (!res.ok) throw new Error('no data');
+    currentData = await res.json();
+    render();
+  } catch (e) {
+    document.getElementById('balance').textContent = 'offline';
+    document.getElementById('balanceSub').textContent = 'waiting for data.json';
+  }
+}
+
+function renderFreshness() {
+  const el = document.getElementById('freshness');
+  const g = currentData && currentData.generated_at;
+  if (!g) { el.textContent = 'Data age: unknown'; return; }
+  const t = new Date(g);
+  const mins = Math.floor((Date.now() - t.getTime()) / 60000);
+  const when = t.toLocaleString('en-US', {timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) + ' ET';
+  const ago = mins < 1 ? 'just now' : mins < 60 ? mins + ' min ago' : Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min ago';
+  const stale = mins > 25;
+  el.textContent = (stale ? 'STALE: ' : '') + 'Data updated ' + when + ' (' + ago + '). Updates every 15 min.';
+  el.style.background = stale ? '#7f1d1d' : '#1f2937';
+  el.style.color = stale ? '#fecaca' : '#d1d5db';
+}
+setInterval(renderFreshness, 60000);
+
+function render() {
+  if (!currentData) return;
+  const d = currentData;
+  renderFreshness();
+
+  document.getElementById('balance').textContent = '$' + (d.balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  document.getElementById('balanceSub').textContent = 'Paper · start $' + (d.startBalance || 1000);
+  document.getElementById('openCount').textContent = (d.positions || []).length;
+  document.getElementById('openSub').textContent = 'Max open: ' + (d.maxOpen || 3);
+  document.getElementById('tasksToday').textContent = d.totalTasks || 0;
+  document.getElementById('tasksSub').textContent = (d.skipCount || 0) + ' skips · ' + (d.skipRate || 0) + '% skip rate';
+  const pnl = d.sessionPnl || 0;
+  document.getElementById('sessionPnl').textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
+  document.getElementById('sessionPnl').className = 'value ' + (pnl >= 0 ? 'green' : 'red');
+  document.getElementById('pnlSub').textContent = (d.wins || 0) + ' wins · ' + (d.losses || 0) + ' losses · unrealized ' + (d.unrealizedPnl == null ? 'n/a' : (d.unrealizedPnl >= 0 ? '+' : '-') + '$' + Math.abs(d.unrealizedPnl).toFixed(2));
+
+  // Skip reasons
+  const reasonsEl = document.getElementById('skipReasons');
+  const reasons = d.skipReasons || {};
+  const totalSkips = Object.values(reasons).reduce((a,b)=>a+b, 0) || 1;
+  reasonsEl.innerHTML = Object.entries(reasons).map(([k,v]) => {
+    const pct = Math.round(v / totalSkips * 100);
+    return `<div class="bar-container">
+      <div class="bar-label"><span>${k}</span><span>${pct}%</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${pct}%; background:var(--red)"></div></div>
+    </div>`;
+  }).join('') || '<div class="empty">No skips yet</div>';
+  document.getElementById('skipCount').textContent = totalSkips;
+
+  // Positions
+  const posEl = document.getElementById('positions');
+  const positions = d.positions || [];
+  document.getElementById('posCount').textContent = positions.length;
+  posEl.innerHTML = positions.length ? positions.map(p => `
+    <div class="card">
+      <div class="card-header">
+        <span class="token">${p.token || '—'}</span>
+        <span class="pnl ${(p.pnl||0) >= 0 ? 'pos' : 'neg'}">${p.pnl == null ? 'mark n/a' : (p.pnl >= 0 ? '+' : '-') + '$' + Math.abs(p.pnl).toFixed(2) + (p.pnlPct == null ? '' : ' (' + p.pnlPct.toFixed(1) + '%)')}</span>
+      </div>
+      <div class="card-body">
+        <div class="row"><span class="k">Size</span><span>$${p.size || 0}</span></div>
+        <div class="row"><span class="k">Entry</span><span>${p.entryPrice == null ? 'n/a' : '$' + Number(p.entryPrice).toPrecision(4)}</span></div>
+        <div class="row"><span class="k">Mark</span><span>${p.markPrice == null ? 'n/a' : '$' + Number(p.markPrice).toPrecision(4)}</span></div>
+        <div class="exit-rules">${p.rules || ''}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="empty">No open positions</div>';
+
+  // Mode / custody / tickets
+  document.getElementById('modeInfo').textContent = 'Mode: ' + (d.modeLabel || 'PAPER') + ' · ' + (d.selfCustodyNote || '');
+  const tx = d.latestTickets || [];
+  document.getElementById('tickets').innerHTML = tx.length ? tx.map(t => `
+    <div class="card"><div class="card-header"><span class="token">${t.side} ${t.token}</span><span>$${t.size}</span></div>
+    <div class="card-body"><div class="row"><span class="k">Jupiter</span><span>${t.quoteOk ? ('out ' + t.outAmount + ' · impact ' + t.priceImpact) : 'quote unavailable'}</span></div>
+    <div class="row"><span class="k">Link</span><span><a href="${t.link}" target="_blank" rel="noopener" style="color:var(--blue)">jup.ag swap</a></span></div>
+    <div class="reason">${t.id} · ${t.created} · PAPER — do not sign</div></div></div>`).join('') : '<div class="empty">No tickets yet</div>';
+
+  // Approval workflow
+  const st = d.approvalStats || {};
+  document.getElementById('approvalStats').textContent = (d.approvalActive ? 'Approval ON' : 'Approval starts ' + (d.approvalStart || 'n/a')) +
+    ' · approved ' + (st.approved || 0) + ' · skipped ' + (st.skipped || 0) + ' · expired ' + (st.expired || 0) + ' · rejected ' + (st.rejected || 0) +
+    ' · median latency ' + (st.medianLatencyS == null ? 'n/a' : st.medianLatencyS + 's') + ' · avg drift ' + (st.avgDriftPct == null ? 'n/a' : st.avgDriftPct.toFixed(2) + '%');
+  const props = d.pendingProposals || [];
+  document.getElementById('proposals').innerHTML = props.length ? props.map(p => `
+    <div class="card"><div class="card-header"><span class="token">${p.token}</span><span>${p.id}</span></div>
+    <div class="card-body"><div class="row"><span class="k">Size</span><span>$${p.size}</span></div>
+    <div class="row"><span class="k">Signal</span><span>${p.signalPrice} @ ${p.signalTs}</span></div>
+    <div class="row"><span class="k">Expires</span><span>${p.expiresAt}</span></div></div></div>`).join('') : '<div class="empty">No pending proposals</div>';
+
+  // Tasks
+  renderTasks();
+
+  // Trades
+  const tradesEl = document.getElementById('trades');
+  const trades = d.trades || [];
+  tradesEl.innerHTML = trades.length ? trades.map(t => `
+    <div class="card">
+      <div class="card-header">
+        <span class="token">${t.token}</span>
+        <span class="pnl ${(t.pnl||0) >= 0 ? 'pos' : 'neg'}">${t.pnl == null ? 'n/a' : (t.pnl >= 0 ? '+' : '-') + '$' + Math.abs(t.pnl).toFixed(2) + (t.pnl_pct == null ? '' : ' (' + t.pnl_pct.toFixed(1) + '%)')}</span>
+      </div>
+      <div class="card-body">
+        <div class="reason">${t.reason || ''} · ${t.time || ''}</div>
+      </div>
+    </div>
+  `).join('') : '<div class="empty">No closed trades</div>';
+
+  document.getElementById('updated').textContent = 'Updated ' + (d.updated || 'just now');
+}
+
+function renderTasks() {
+  const el = document.getElementById('tasks');
+  let tasks = (currentData && currentData.tasks) || [];
+  if (currentFilter === 'skip') tasks = tasks.filter(t => (t.decision || '').toLowerCase() === 'skip');
+  if (currentFilter === 'candidate') tasks = tasks.filter(t => (t.decision || '').toLowerCase() === 'candidate');
+  if (currentFilter === 'fill') tasks = tasks.filter(t => ['fill','buy','sell'].includes((t.decision || '').toLowerCase()));
+
+  el.innerHTML = tasks.slice(0, 40).map(t => `
+    <div class="card">
+      <div class="card-header">
+        <span class="agent ${(t.role || '').toLowerCase()}">${t.role || '—'}</span>
+        <span class="result ${(t.decision || '').toLowerCase()}">${(t.decision || '').toUpperCase()}</span>
+      </div>
+      <div class="card-body">
+        <div class="token">${t.token || '—'}</div>
+        <div class="reason">${t.reasons || ''}</div>
+        <div class="reason" style="margin-top:6px">${t.ts || ''}</div>
+      </div>
+    </div>
+  `).join('') || '<div class="empty">No tasks</div>';
+}
+
+document.getElementById('tabs').addEventListener('click', e => {
+  if (!e.target.classList.contains('tab')) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  currentFilter = e.target.dataset.filter;
+  renderTasks();
+});
+
+loadData();
+setInterval(loadData, 30000); // refresh every 30s
+</script>
+</body>
+</html>

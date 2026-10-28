@@ -1,0 +1,13 @@
+logs/
+tickets/
+state.json
+pending.json
+data.json
+site/data.json
+cf-pages/
+*.lock
+*.pid
+*.tmp
+__pycache__/
+.desk.lock
+.exit_watch.pid
