@@ -10,6 +10,11 @@ def scan():
     mints = list(dict.fromkeys(p["tokenAddress"] for p in profiles if p.get("chainId") == "solana"))[:config.MAX_CANDIDATES]
     src = {m: "DexScreener profiles" for m in mints}
     mints += [m for m in whale_watch() if m not in mints]
+    if getattr(config, "BINANCE_US_ONLY", False):  # second source: canonical mints of Binance.US-listed tickers
+        import binance_us
+        for t, m in binance_us.listed_canonical().items():
+            if m in src: src[m] += " + Binance.US canonical"
+            else: mints.append(m); src[m] = "Binance.US canonical"
     out = []
     for i in range(0, len(mints), 30):
         data = get_json("https://api.dexscreener.com/tokens/v1/solana/" + ",".join(mints[i:i+30])) or []

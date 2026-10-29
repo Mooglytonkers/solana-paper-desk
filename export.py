@@ -27,7 +27,7 @@ def build(price_fn=dex_price):
     tasks, trades = rows("tasks.csv"), rows("trades.csv")
     v = [t for t in tasks if t["role"] == "VERIFY"]
     skips = [t for t in v if t["decision"] == "SKIP"]
-    br = collections.Counter(reason_key(r) for t in skips for r in t["reasons"].split(";") if r.strip())
+    br = collections.Counter(reason_key(r) for t in skips for r in t["reasons"].split(";") if r.strip() and "binance" not in r.lower())  # Binance.US gate deprecated; hidden from dashboard
     sells = []
     for t in trades:
         if t.get("side") != "SELL": continue
@@ -76,10 +76,10 @@ def build(price_fn=dex_price):
         "realized_pnl_usd": realized, "unrealized_pnl_usd": unreal,
         "trades": sells, "all_fills": trades,
         "approval_required": bool(getattr(config, "APPROVAL_REQUIRED", False)), "approval_start": getattr(config, "APPROVAL_START", None),
-        "mode": "PAPER" if config.PAPER_MODE else "LIVE",
+        "mode": "PAPER" if config.PAPER_MODE else "LIVE", "binance_us_filter": bool(getattr(config, "BINANCE_US_ONLY", False)),
         "self_custody_note": "You sign in your wallet; desk never holds keys.", "latest_tickets": tix,
         "approval_active": execute.approval_active(), "pending_proposals": pending, "approval_stats": astats,
-        # camelCase keys read by the dashboard (site/index.html)
+        # camelCase keys read by the live dashboard (site/index.html)
         "startBalance": config.STARTING_PAPER_BALANCE, "maxOpen": config.MAX_OPEN_POSITIONS,
         "positions": [dict(token=o.get("symbol"), size=round(o["cost_basis_usd"], 2), pnl=o["unrealized_pnl_usd"],
                            pnlPct=o["unrealized_pnl_pct"], markPrice=o["mark_price"], entryPrice=o.get("entry"), rules="paper EXIT rules") for o in opens],
@@ -88,7 +88,7 @@ def build(price_fn=dex_price):
         "wins": sum(1 for x in known if x > 0), "losses": sum(1 for x in known if x < 0),
         "skipReasons": dict(br.most_common()), "tasks": tasks[-30:],
         "updated": now.strftime("%Y-%m-%d %H:%M ET"),
-        "modeLabel": "PAPER" if config.PAPER_MODE else "LIVE",
+        "modeLabel": "PAPER" if config.PAPER_MODE else "LIVE", "binanceFilter": bool(getattr(config, "BINANCE_US_ONLY", False)),
         "selfCustodyNote": "You sign in your wallet; desk never holds keys.",
         "latestTickets": [dict(id=t["id"], side=t["side"], token=t["symbol"], size=t["size_usd"], link=t["jupiter_link"],
                                quoteOk=t["quote_ok"], outAmount=t["out_amount"], priceImpact=t["price_impact"], created=t["created_at"]) for t in tix],
@@ -99,8 +99,6 @@ def build(price_fn=dex_price):
                           "rejected": astats["rejected"], "proposed": astats["proposed"],
                           "medianLatencyS": astats["median_latency_s"], "avgDriftPct": astats["avg_drift_pct"]},
     }
-    out = json.dumps(data, indent=2)
-    for p in (os.path.join(BASE, "data.json"), os.path.join(BASE, "site", "data.json")):  # site/ copy so the dashboard can be served as-is
-        if os.path.isdir(os.path.dirname(p)): open(p, "w").write(out)
+    json.dump(data, open(os.path.join(BASE, "data.json"), "w"), indent=2)
     return data
 if __name__ == "__main__": build()

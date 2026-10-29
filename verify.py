@@ -25,6 +25,11 @@ def momentum(p):
     return r, missing
 
 def verify(c):
+    if getattr(config, "BINANCE_US_ONLY", False):  # gate #1: canonical Binance.US mint, else skip immediately
+        import binance_us
+        sym = ((c.get("pair") or {}).get("baseToken") or {}).get("symbol")
+        g = binance_us.gate(c["mint"], sym)
+        if g: return g
     p, r = c["pair"], []
     if not p: return ["no Solana pair data"]
     liq = (p.get("liquidity") or {}).get("usd") or 0
@@ -56,7 +61,12 @@ def run(cands):
     for c in cands:
         sym = (c["pair"] or {}).get("baseToken", {}).get("symbol", "?")
         reasons = verify(c)
-        log_task("VERIFY", sym, c["mint"], "SKIP" if reasons else "PASS", reasons or ["all gates passed"])
+        if not reasons:
+            p = c["pair"] or {}; pc, tx = p.get("priceChange") or {}, (p.get("txns") or {}).get("m5") or {}
+            b, s = tx.get("buys"), tx.get("sells")
+            sb = (f"{s/b:.2f}" if b else "n/a") if b is not None and s is not None else "n/a"
+            log_reasons = ["all gates passed", f"momentum m5 {pc.get('m5')}% h1 {pc.get('h1')}% m5 sells/buys {s}/{b} ({sb})"]
+        log_task("VERIFY", sym, c["mint"], "SKIP" if reasons else "PASS", reasons or log_reasons)
         if not reasons: passed.append(c)
         else: c["reasons"] = reasons
     return passed

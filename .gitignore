@@ -11,3 +11,6 @@ cf-pages/
 __pycache__/
 .desk.lock
 .exit_watch.pid
+mint_blocks.json
+kraken_*
+archive/

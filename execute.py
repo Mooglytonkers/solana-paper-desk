@@ -2,7 +2,7 @@
 Before config.APPROVAL_START (or if APPROVAL_REQUIRED is False): fills VERIFY survivors immediately, as before.
 After it: VERIFY survivors become PROPOSED entries in pending.json; no fill until approve.py."""
 import datetime, hashlib, config
-from common import log_task, log_trade, load_state, save_state, load_pending, save_pending, now, TZ
+from common import log_task, log_trade, load_state, save_state, load_pending, save_pending, now, TZ, active_block
 
 def approval_active(at=None):
     at = at or datetime.datetime.now(TZ)
@@ -23,6 +23,9 @@ def run(passed):
         if pending is not None:
             if any(x["mint"] == c["mint"] for x in pending):
                 log_task("EXECUTE", sym, c["mint"], "SKIP", ["proposal already pending"]); continue
+            blk = active_block(c["mint"])
+            if blk:
+                log_task("EXECUTE", sym, c["mint"], "SKIP", [f"mint blocked until {blk['until']} ({blk['why']})"]); continue
             ts = now(); exp = (datetime.datetime.fromisoformat(ts) + datetime.timedelta(minutes=config.PROPOSAL_TTL_MINUTES)).isoformat(timespec="seconds")
             pid = "P" + hashlib.sha1((c["mint"] + ts).encode()).hexdigest()[:6]
             prop = dict(id=pid, symbol=sym, mint=c["mint"], signal_price=price, signal_ts=ts, size_usd=usd,

@@ -1,5 +1,5 @@
 """Trade tickets (paper). For every paper fill, writes tickets/<id>.json + tickets/<id>.md with a read-only public
-Jupiter quote and a jup.ag link. This desk never holds keys, signs, or connects a wallet."""
+Jupiter quote and a jup.ag link. Daniel signs in his own wallet; this desk never holds keys, signs, or connects a wallet."""
 import json, os, datetime, urllib.request, config
 from common import BASE, TZ
 DIR = os.path.join(BASE, "tickets")
@@ -80,8 +80,10 @@ No unsigned transaction was built. That needs your public wallet address and an 
     return tid
 
 def build_unsigned_tx(*a, **k):
-    """Intentionally not implemented. This project is paper-only and never builds, signs or sends transactions."""
-    raise NotImplementedError("paper-only project: no transaction building")
+    """Stub. Never signs. Will only ever build an UNSIGNED tx for Daniel to sign in his own wallet, after go-live."""
+    if config.PAPER_MODE is not False or not getattr(config, "WALLET_PUBLIC_ADDRESS", None):
+        raise RuntimeError("build_unsigned_tx disabled: requires PAPER_MODE = False AND WALLET_PUBLIC_ADDRESS set, with Daniel's explicit go-live approval")
+    raise NotImplementedError("unsigned tx building not implemented yet")
 
 def safe_write(*a, **k):
     """Ticket writing must never break a fill/cycle."""

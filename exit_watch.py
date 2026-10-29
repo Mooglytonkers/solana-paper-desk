@@ -1,7 +1,7 @@
 """Exit-only watcher: runs EXIT on open paper positions. No SCAN/VERIFY/EXECUTE/proposals.
 Usage: python3 exit_watch.py [--dry-run]   (--dry-run: report what would happen, change nothing)
 Skips the tick if the desk lock is held (full cycle / approve.py running)."""
-import os, sys, fcntl, subprocess, config
+import os, sys, json, fcntl, shutil, subprocess, time, config
 from common import BASE, LOGS, load_state, now
 assert config.PAPER_MODE is True
 LOG = os.path.join(LOGS, "exit_watch.log"); MAX_LOG = 512 * 1024
@@ -15,10 +15,11 @@ def log(msg):
 def trade_lines(): return sum(1 for _ in open(TRADES)) if os.path.exists(TRADES) else 0
 
 def deploy():
-    """Optional: set DESK_DEPLOY_CMD (e.g. a script that uploads site/ to your static host). Returns rc, or None if unset."""
-    cmd = os.environ.get("DESK_DEPLOY_CMD")
-    if not cmd: return None
-    return subprocess.run(cmd, shell=True, cwd=BASE, capture_output=True, text=True, timeout=300).returncode
+    for f in ("data.json", "site/index.html"): shutil.copy(os.path.join(BASE, f), os.path.join(BASE, "cf-pages"))
+    r = subprocess.run(["./node_modules/.bin/wrangler", "pages", "deploy", os.path.join(BASE, "cf-pages"),
+                        "--project-name", "solana-desk", "--branch", "main"],
+                       cwd="/workspace/cfdeploy", capture_output=True, text=True, timeout=300)
+    return r.returncode
 
 def main(dry=False):
     pos = load_state()["positions"]

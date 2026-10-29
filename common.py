@@ -26,6 +26,22 @@ def desk_lock():
     with open(os.path.join(BASE, ".desk.lock"), "w") as f:
         fcntl.flock(f, fcntl.LOCK_EX); yield
 
+MINT_BLOCKS = os.path.join(BASE, "mint_blocks.json")
+def load_blocks(): return json.load(open(MINT_BLOCKS)) if os.path.exists(MINT_BLOCKS) else {}
+def add_block(mint, minutes, why, at=None):
+    """Per-mint cooldown/block (paper desk state). Keeps the later expiry if one exists."""
+    import datetime
+    if not minutes: return
+    at = at or datetime.datetime.now(TZ); until = at + datetime.timedelta(minutes=minutes)
+    b = load_blocks(); cur = b.get(mint)
+    if cur and datetime.datetime.fromisoformat(cur["until"]) >= until: return
+    b[mint] = {"until": until.isoformat(timespec="seconds"), "why": why}
+    tmp = MINT_BLOCKS + ".tmp"; json.dump(b, open(tmp, "w"), indent=2); os.replace(tmp, MINT_BLOCKS)
+def active_block(mint, at=None):
+    import datetime
+    at = at or datetime.datetime.now(TZ); x = load_blocks().get(mint)
+    return x if x and at < datetime.datetime.fromisoformat(x["until"]) else None
+
 def load_pending(): return json.load(open(PENDING)) if os.path.exists(PENDING) else []
 def save_pending(p):
     tmp = PENDING + ".tmp"; json.dump(p, open(tmp, "w"), indent=2); os.replace(tmp, PENDING)

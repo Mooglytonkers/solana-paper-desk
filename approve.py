@@ -4,7 +4,7 @@ Usage:  python3 approve.py --list
         python3 approve.py --expire        (desk.py also runs this every cycle)"""
 import sys, time, datetime, config, verify
 from common import (get_json, log_task, log_trade, load_state, save_state, load_pending, save_pending,
-                    desk_lock, TZ)
+                    desk_lock, TZ, add_block)
 
 def _now(): return datetime.datetime.now(TZ)
 def _latency(prop, at): return round((at - datetime.datetime.fromisoformat(prop["signal_ts"])).total_seconds(), 1)
@@ -21,6 +21,7 @@ def expire_stale(at=None):
         if at >= datetime.datetime.fromisoformat(p["expires_at"]):
             log_task("APPROVE", p["symbol"], p["mint"], "EXPIRED", [f"id {p['id']}", "not acted on within TTL"],
                      approval_latency_s=_latency(p, at), signal_price=p["signal_price"]); n += 1
+            add_block(p["mint"], getattr(config, "PROPOSAL_COOLDOWN_MINUTES", 0), f"cooldown after {p['id']} lapsed", at)
         else: keep.append(p)
     save_pending(keep); return n
 
@@ -35,12 +36,19 @@ def decide(pid, action, at=None, pair_fn=current_pair):
     def close(decision, reasons, **kw):
         log_task("APPROVE", prop["symbol"], prop["mint"], decision, tag + reasons, approval_latency_s=lat, signal_price=prop["signal_price"], **kw)
         save_pending(rest); return f"{pid}: {decision} ({'; '.join(reasons)}) latency {lat}s"
-    if action == "skip": return close("SKIP", ["skipped by operator"])
+    if action == "skip":
+        add_block(prop["mint"], getattr(config, "SKIP_COOLDOWN_MINUTES", 0), f"cooldown after {pid} skipped", at)
+        return close("SKIP", ["skipped by Daniel"])
     pair = pair_fn(prop["mint"])
     if pair is None: return close("REJECTED", ["current price unavailable - no fill"])
     price = float(pair["priceUsd"]); drift = round((price / prop["signal_price"] - 1) * 100, 4)
     fails = verify.verify({"mint": prop["mint"], "pair": pair})
-    if fails: return close("REJECTED", ["hard gates now failing: " + "; ".join(fails)], drift_pct=drift)
+    if fails:
+        add_block(prop["mint"], 60 * getattr(config, "HARD_GATE_FAIL_BLOCK_HOURS", 0), f"hard-gate fail at fill ({pid})", at)
+        return close("REJECTED", ["hard gates now failing: " + "; ".join(fails)], drift_pct=drift)
+    up, dn = getattr(config, "MAX_FILL_DRIFT_UP_PCT", None), getattr(config, "MAX_FILL_DRIFT_DOWN_PCT", None)
+    if up is not None and drift > up: return close("REJECTED", [f"price moved {drift:+.1f}% vs signal > +{up}%"], drift_pct=drift)
+    if dn is not None and drift < -dn: return close("REJECTED", [f"price moved {drift:+.1f}% vs signal < -{dn}%"], drift_pct=drift)
     s = load_state()
     if len(s["positions"]) >= config.MAX_OPEN_POSITIONS: return close("REJECTED", ["max open positions"], drift_pct=drift)
     if any(x["mint"] == prop["mint"] for x in s["positions"]): return close("REJECTED", ["already holding"], drift_pct=drift)
